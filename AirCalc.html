@@ -1,0 +1,674 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en-us">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>Air Calculator</title>
+  <meta content="Frank Mecklenburg" name="author">
+  <meta content="Performs air calculations related to aviation" name="description">
+	<style type="text/css">
+		.Calculator {
+			float: left;
+			margin: .5em;
+			border: solid #003E99 2px;
+			padding-top: 5px;
+			padding-bottom: 5px;
+			padding-left: 5px;
+			padding-right: 5px;
+		}
+		.Heading {
+			text-align: center;
+			font-size: 14pt;
+			background-color: #ddf;
+			font-weight: bold;
+		}
+		.SubHeading {
+			background-color: #ddd;
+			font-weight: bold;
+			font-style: italic;
+		}
+		.Footer {
+		}
+		button
+		{
+			background-color: #003E99;
+			color: white;
+			float: right;
+		}
+
+	</style>
+	<script language="JavaScript">
+		// Global variables
+		var AmbTemperature; // deg R
+		var AmbPressure;
+		var AmbDensity;
+		var AmbViscosity;
+		var LapseRate = -.00356; // deg R / ft
+		var R = 1718.0;
+		var Cp = 6006.0;
+		var Cv = Cp - R;
+		var F2R= 459.67;
+		
+		// Global functions
+		function $( id ) {
+			return document.getElementById( id );
+		}
+		
+		function GetNumericValue( id ) {
+			var tmp = $( id ).value;
+			if ( tmp.length <= 0 )
+				return null;
+			tmp = eval( tmp );
+			if ( tmp == NaN ) {
+				alert( id + ' is not a mumber' );
+				return null;
+			}
+			return tmp;				
+		}
+		
+		// Perform compressible adiabatic calculation
+		// station1 has known StatPres, Velocity, and StatTemp
+		// station2 has one of the above
+		// function calculates the other 2
+		function Bernoulli( station1, station2 ) {
+			var k0 = Cp * station1.StatTemp + 0.5 * station1.Velocity * station1.Velocity;
+			if ( $('BernGotV2').checked ) {
+				station2.StatTemp = (k0 - 0.5 * station2.Velocity * station2.Velocity) / Cp;
+				station2.StatPres = station1.StatPres * Math.pow( station2.StatTemp / station1.StatTemp, 3.5 );
+			} else if ( $('BernGotP2').checked ) {
+				station2.StatTemp = station1.StatTemp * Math.pow( (station2.StatPres / station1.StatPres), .4/1.4 );
+				station2.Velocity = Math.sqrt( 2 * (k0 - station2.StatTemp * Cp) );
+			} else if ( $('BernGotT2').checked ) {
+				station2.Velocity = Math.sqrt( 2 * (k0 - station2.StatTemp * Cp) );
+				station2.StatPres = station1.StatPres * Math.pow( station2.StatTemp / station1.StatTemp, 3.5 );
+			}
+		}
+		
+		// Properties of Air Calculator
+		function CalcAmbient() {
+			var surf_temp = GetNumericValue('SurfTemp') + F2R;
+			var msl_pressure = GetNumericValue('Baro') * 70.729;
+			var surf_alt = GetNumericValue('SurfAlt');
+			var current_alt = GetNumericValue('CurrentAlt');
+		    var goar = 32.2 / LapseRate / R
+		    var msl_temp = surf_temp - LapseRate * surf_alt
+		    AmbTemperature = surf_temp + LapseRate * (current_alt  - surf_alt)
+		    AmbPressure = msl_pressure * Math.pow( AmbTemperature / msl_temp, -goar )
+		    AmbDensity = AmbPressure / R / AmbTemperature
+		    AmbViscosity = 3.17E-11 * Math.pow( AmbTemperature, 1.5 ) * 734.7 / (AmbTemperature + 216.0)
+			$('AmbTemperature').value = (AmbTemperature - F2R).toFixed(1);
+			$('AmbPressure').value = AmbPressure.toFixed(1);
+			$('AmbDensity').value = AmbDensity.toFixed(6);
+			$('AmbViscosity').value = AmbViscosity.toFixed(9);
+		}
+		
+		// Reynolds Number Calculator
+		function CalcReynoldsNumber() {
+			var vel = GetNumericValue('ReVelocity');
+			var len = GetNumericValue('ReLength');
+			$('ReynoldsNumber').value = (AmbDensity * vel * len / AmbViscosity ).toFixed(0);
+		}
+		
+		// Incompressible Bernulli Calculator
+		function CalciBernoulli() {
+			var v1 = GetNumericValue('iBerVelocity1');
+			var p1 = GetNumericValue('iBerPressure1');
+			var v2 = GetNumericValue('iBerVelocity2');
+			var p2 = GetNumericValue('iBerPressure2');
+			if ( $('iBernFindV2').checked || $('iBernFindP2').checked ) {
+				var stag = p1 + 0.5 * AmbDensity * v1 * v1;
+				if ( $('iBernFindP2').checked  )
+					$('iBerPressure2').value = (stag - (0.5 * AmbDensity * v2 * v2)).toFixed(1);
+				else
+					$('iBerVelocity2').value = Math.pow(2 * (stag - p2) / AmbDensity, .5).toFixed(1);
+			}
+			else if ( $('iBernFindV1').checked || $('iBernFindP1').checked ) {
+				var stag = p2 + 0.5 * AmbDensity * v2 * v2;
+				if ( $('iBernFindP1').checked  )
+					$('iBerPressure1').value = (stag - (0.5 * AmbDensity * v1 * v1)).toFixed(1);
+				else
+					$('iBerVelocity1').value = Math.pow(2 * (stag - p1) / AmbDensity, .5).toFixed(1);
+			}
+			else
+				alert( 'Check the radio button next to the value to be calculated.' );
+		}
+		
+		// Bernulli Calculator
+		function CalcBernoulli() {
+			var v1 = GetNumericValue('BerVelocity1');
+			var p1 = GetNumericValue('BerPressure1') + AmbPressure;
+			if ( $('BerTemperature1').value == '' ) {
+				$('BerTemperature1').value = (AmbTemperature - F2R).toFixed(2);
+			}
+			var t1 = GetNumericValue('BerTemperature1') + F2R;
+			s1 = { StatPres: p1, StatTemp: t1, Velocity: v1 };
+			s2 = { StatPres: null, StatTemp: null, Velocity: null };
+			if ( $('BernGotV2').checked  ) {
+				s2.Velocity = GetNumericValue('BerVelocity2');
+				Bernoulli( s1, s2 );
+				$('BerPressure2').value = (s2.StatPres-AmbPressure).toFixed(1);
+				$('BerTemperature2').value = (s2.StatTemp-F2R).toFixed(1);
+			} else if ( $('BernGotP2').checked  ) {
+				s2.StatPres = GetNumericValue('BerPressure2') + AmbPressure;
+				Bernoulli( s1, s2 );
+				$('BerVelocity2').value = s2.Velocity.toFixed(1);
+				$('BerTemperature2').value = (s2.StatTemp-F2R).toFixed(1);
+			} else if ( $('BernGotT2').checked  ) {
+				s2.StatTemp = GetNumericValue('BerTemperature2') + F2R;
+				Bernoulli( s1, s2 );
+				$('BerVelocity2').value = s2.Velocity.toFixed(1);
+				$('BerPressure2').value = (s2.StatPres-AmbPressure).toFixed(1);
+			} else {
+				alert( 'Check the radio button next to the input value.' );
+			}
+		}
+		
+		function CalcPropPower() {
+			var dia = GetNumericValue('PropDia') / 12.0;
+			var thrust = GetNumericValue('PropThrust');
+			var air_speed = GetNumericValue('PropAirSpeed') * 1.688;
+			var eta = GetNumericValue('PropEta');
+			var area = dia * dia * 3.14159 / 4.0;
+			var x = thrust / (2 * area * AmbDensity * air_speed * air_speed);
+			var a = (-1 + Math.sqrt(1+4*x))/2.0;
+			var power = thrust * air_speed * (1 + a);
+			$('PropPower').value = (power / eta / 550).toFixed(1);
+		}
+		function CalcCompressorEfficiency() {
+			var delp = GetNumericValue('CompEffPressure');
+			var delt = GetNumericValue('CompEffTemperature') + F2R - AmbTemperature;
+			var h = Cp * delt;
+			var s = Cp * Math.log( 1 + delt / AmbTemperature ) - R * Math.log( 1 + delp / AmbPressure);
+			var e = 1 - AmbTemperature * s / h;
+			$('CompEfficiency').value = (100*e).toFixed(0);
+			
+		}
+		
+		// Nozzle Calculator
+		function validateNzlChecks() {
+			var n = 0;
+			if ( $('NzlFindPressure').checked ) {
+				n++;
+			}
+			if ( $('NzlFindExitArea').checked ) {
+				n++;
+			}
+			if ( $('NzlFindThrust').checked ) {
+				n++;
+			}
+			if ( $('NzlFindVelocity').checked ) {
+				n++;
+			}
+			if ( ( n > 2 ) || ((n == 2) && !$('NzlFindPressure').checked && !$('NzlFindVelocity').checked) )
+				alert( 'Only three may be outputs. Either Pressure or Velocity must be an output.' );
+			
+		}
+		
+		function onClickNzlFindPressure() {
+			validateNzlChecks()
+		}
+
+		function onClickNzlFindExitArea() {
+			validateNzlChecks()
+		}
+
+	    function onClickNzlFindThrust() {
+			validateNzlChecks()
+		}
+
+	    function onClickNzlFindVelocity() {
+			validateNzlChecks()
+		}
+
+		function CalcNozzle() {
+			var P = GetNumericValue('NzlPressure');
+			var A = GetNumericValue('NzlExitArea');
+			var T = GetNumericValue('NzlThrust');
+			var V = GetNumericValue('NzlVelocity');
+			if ( !$('NzlFindPressure').checked ) {
+				V = Math.pow( 2 * P / AmbDensity, .5 );
+				$('NzlVelocity').value = V.toFixed( 1 );
+			}
+			if ( !$('NzlFindVelocity').checked ) {
+				P = .5 * AmbDensity * V * V;
+				$('NzlPressure').value = P.toFixed( 1 );
+			}
+			if ( $('NzlFindThrust').checked ) {
+				T = 2 * P * A;
+				$('NzlThrust').value = T.toFixed( 3 );
+			}
+			else if ( $('NzlFindExitArea').checked ) {
+				A = .5 * T / P;
+				$('NzlExitArea').value = A.toFixed( 4 );
+			}
+			else if ( $('NzlFindPressure').checked ) {
+				P = .5 * T / A;
+				$('NzlThrust').value = T.toFixed( 3 );
+				V = Math.pow( 2 * P / AmbDensity, .5 );
+				$('NzlVelocity').value = V.toFixed( 1 );
+			}
+			var Pow = A * Math.pow( 2 * P * P * P / AmbDensity, .5 );
+			$('NzlPower').value = Pow.toFixed( 2 );
+		}
+		
+		function CalcAvailPower() {
+			var A = GetNumericValue('AvailPowerA');
+			var Q = GetNumericValue('AvailPowerQ');
+			var P = GetNumericValue('AvailPowerP') + AmbPressure;
+			if ( $('AvailPowerT').value == '' ) {
+				$('AvailPowerT').value = (AmbTemperature - F2R).toFixed(2);
+			}
+			var T = GetNumericValue('AvailPowerT') + F2R;
+			var rho = P / R / T;
+			var V = Q / A;
+			var mDot = Q * rho;
+			var Pr = mDot * R * AmbTemperature * Math.log(P/AmbPressure);
+			var K = mDot * .5 * V * V;
+			var H = mDot * Cp * AmbTemperature * (T/AmbTemperature - Math.log(T/AmbTemperature) - 1);
+			var total = H + K + Pr;
+			$('AvailPowerPr').value = Pr.toFixed( 2 );
+			$('AvailPowerVV').value = K.toFixed( 2 );
+			$('AvailPowerH').value = H.toFixed( 2 );
+			$('AvailPowerTotal').value = total.toFixed( 2 );
+
+		}
+	</script>
+</head>
+<body>
+<table><tr><td align="center">
+<h2>Air Calculator</h2>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Properties of Air (Set these first.)
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Surface Temperature ( &deg;F )</td>
+	      <td><input id="SurfTemp" name="SurfTemp" value="64.44"></td>
+	    </tr>
+	    <tr>
+	      <td>Barometric Pressure ( in. Hg ) </td>
+	      <td><input id="Baro" name="Baro" value="29.92"></td>
+	    </tr>
+	    <tr>
+	      <td>Surface Altitude ( ft. )</td>
+	      <td> <input id="SurfAlt" name="SurfAlt" value="1000">&nbsp;</td>
+	    </tr>
+	    <tr>
+	      <td>Current Altitude ( ft. )</td>
+	      <td><input id="CurrentAlt" name="CurrentAlt" value="1000"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Outputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Ambient Temperature ( &deg;F )</td>
+	      <td><input readonly="readonly" id="AmbTemperature" name="AmbTemperature"></td>
+	    </tr>
+	    <tr>
+	      <td>Ambient Pressure ( lb/ft<sup>2</sup> )</td>
+	      <td><input readonly id="AmbPressure"name="AmbPressure"></td>
+	    </tr>
+	    <tr>
+	      <td>Ambient Density ( slugs/ft<sup>3</sup> )</td>
+	      <td><input readonly id="AmbDensity" name="AmbDensity"></td>
+	    </tr>
+	    <tr>
+	      <td>Ambient Viscosity ( lb-s/ft )</td>
+	      <td><input readonly id="AmbViscosity" name="AmbViscosity"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcAmbient()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Reynolds Number
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Velocity ( ft./s )</td>
+	      <td><input id="ReVelocity" name="ReVelocity" value=""></td>
+	    </tr>
+	    <tr>
+	      <td>Length ( ft. )</td>
+	      <td><input id="ReLength" name="ReLength" value=""></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Outputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Reynolds Number</td>
+	      <td><input readonly id="ReynoldsNumber" name="ReynoldsNumber"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcReynoldsNumber()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="3" class="Heading">
+				Bernoulli (Incompressable)
+			</td>
+		</tr>
+		<tr>
+			<td colspan="3" class="SubHeading">
+				3 Inputs, 1 Output:
+			</td>
+		</tr>
+	   	<tr>
+	      <td>Velocity 1( ft./s )</td>
+	      <td><input id="iBerVelocity1" name="iBerVelocity1" value="0"></td>
+		  <td><input type="radio" id="iBernFindV1" name="iBernRadios"/></td>
+	    </tr>
+	    <tr>
+	      <td>Static Pressure 1 ( lb/ft<sup>2</sup> )</td>
+	      <td><input id="iBerPressure1" name="iBerPressure1" value="0"></td>
+		  <td><input type="radio" id="iBernFindP1" name="iBernRadios"/></td>
+	    </tr>
+		 <tr>
+	      <td>Velocity 2( ft./s )</td>
+	      <td><input id="iBerVelocity2" name="iBerVelocity2" value="0"></td>
+		  <td><input type="radio" id="iBernFindV2" name="iBernRadios"/></td>
+	    </tr>
+	    <tr>
+	      <td>Static Pressure 2 ( lb/ft<sup>2</sup> )</td>
+	      <td><input id="iBerPressure2" name="iBerPressure2" value="0"></td>
+		  <td><input type="radio" id="iBernFindP2" name="iBernRadios"/></td>
+	    </tr>
+		<tr>
+			<td colspan="3" class="Footer">
+				<button name="Calculate" type="button" onclick="CalciBernoulli()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="3" class="Heading">
+				Bernoulli (Compressable, &gamma;=1.4)
+			</td>
+		</tr>
+		<tr>
+			<td colspan="3" class="SubHeading">
+				3 Inputs:
+			</td>
+		</tr>
+	   	<tr>
+	      <td>Velocity 1( ft./s )</td>
+	      <td><input id="BerVelocity1" name="BerVelocity1" value="0"></td>
+		  <td> </td>
+	    </tr>
+	    <tr>
+	      <td>Static Pressure 1 ( lb/ft<sup>2</sup> )</td>
+	      <td><input id="BerPressure1" name="BerPressure1" value="0"></td>
+		  <td></td>
+	    </tr>
+	    <tr>
+	      <td>Static Temperature 1( &deg;F )</td>
+	      <td><input id="BerTemperature1" name="BerTemperature1" value=""></td>
+		  <td></td>
+	    </tr>
+		<tr>
+			<td colspan="3" class="SubHeading">
+				1 Input, 2 Output2:
+			</td>
+		</tr>
+		<tr>
+	      <td>Velocity 2( ft./s )</td>
+	      <td><input id="BerVelocity2" name="BerVelocity2" value="0"></td>
+		  <td><input type="radio" id="BernGotV2" name="BernRadios"/></td>
+	    </tr>
+	    <tr>
+	      <td>Static Pressure 2 ( lb/ft<sup>2</sup> )</td>
+	      <td><input id="BerPressure2" name="BerPressure2" value="0"></td>
+		  <td><input type="radio" id="BernGotP2" name="BernRadios"/></td>
+	    </tr>
+	    <tr>
+	      <td>Static Temperature 2( &deg;F )</td>
+	      <td><input id="BerTemperature2" name="BerTemperature2" value=""></td>
+		  <td><input type="radio" id="BernGotT2" name="BernRadios"/></td>
+	    </tr>
+		<tr>
+			<td colspan="3" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcBernoulli()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Ideal Propeller
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				4 Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Diameter ( in )</td>
+	      <td><input id="PropDia" name="PropDia" value="30"></td>
+	    </tr>
+		 <tr>
+	      <td>Thrust ( lb )</td>
+	      <td><input id="PropThrust" name="PropThrust" value="0"></td>
+	    </tr>
+		 <tr>
+	      <td>Air Speed ( kt )</td>
+	      <td><input id="PropAirSpeed" name="PropAirSpeed" value="0"></td>
+	    </tr>
+		 <tr>
+	      <td>Efficiency ( &eta; )</td>
+	      <td><input id="PropEta" name="PropEta" value=".85"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				1 Output:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Shaft Power ( hp )</td>
+	      <td><input id="PropPower" name="PropPower"></td>
+	    </tr>
+		<tr>
+			<td colspan="3" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcPropPower()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Compressor Efficiency
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				2 Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Output Stagnation Pressure ( lb/ft<sup>2</sup> )</td>
+	      <td><input id="CompEffPressure" name="CompEffPressure" value="0"></td>
+	    </tr>
+		 <tr>
+	      <td>Output Stagnation Temperature ( &deg;F )</td>
+	      <td><input id="CompEffTemperature" name="CompEffTemperature" value="0"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				1 Output:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Efficiency ( % )</td>
+	      <td><input id="CompEfficiency" name="CompEfficiency"></td>
+	    </tr>
+		<tr>
+			<td colspan="3" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcCompressorEfficiency()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="3" class="Heading">
+				Subsonic Nozzle
+			</td>
+		</tr>
+		<tr>
+			<td colspan="3" class="SubHeading">
+				2 Inputs, 3 Outputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Stagnation Pressure( lb/ft<sup>2</sup> )</td>
+	      <td><input id="NzlPressure" name="NzlPressure" value=""></td>
+		  <td><input type="checkbox" id="NzlFindPressure" name="NzlFindPressure" onclick="onClickNzlFindPressure()"/></td>
+	    </tr>
+   	    <tr>
+	      <td>Exit Area ( ft<sup>2</sup> )</td>
+	      <td><input id="NzlExitArea" name="NzlExitArea" value=""></td>
+		  <td><input type="checkbox" id="NzlFindExitArea" name="NzlFindExitArea" onclick="onClickNzlFindExitArea()"/></td>
+	    </tr>
+	    <tr>
+	      <td>Thrust ( lb )</td>
+	      <td><input id="NzlThrust" name="NzlThrust" value=""></td>
+		  <td><input type="checkbox" id="NzlFindThrust" name="NzlFindThrust" onclick="onClickNzlFindThrust()"/></td>
+	    </tr>
+		 <tr>
+	      <td>Exit Velocity( ft./s )</td>
+	      <td><input id="NzlVelocity" name="NzlVelocity" value=""></td>
+		  <td><input type="checkbox" id="NzlFindVelocity" name="NzlFindVelocity" onclick="onClickNzlFindVelocity()"/></td>
+	    </tr>
+   	    <tr>
+	      <td>Input Power( ft-lb/s )</td>
+	      <td><input id="NzlPower" name="NzlPower" value=""></td>
+		  <td><input type="checkbox" id="NzlFindPower" name="NzlFindPower" checked/></td>
+	    </tr>
+		<tr>
+			<td colspan="3" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcNozzle()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Available Power (Darrieus Function)
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Area ( ft<sup>2</sup> )</td>
+	      <td><input id="AvailPowerA" name="AvailPowerA" value=""></td>
+	    </tr>
+	    <tr>
+	      <td>Flow rate ( ft<sup>3</sup>/s )</td>
+	      <td><input id="AvailPowerQ" name="AvailPowerQ" value=""></td>
+	    </tr>
+	    <tr>
+	      <td>Static Pressure ( lb/ft<sup>2</sup> )</td>
+	      <td><input id="AvailPowerP" name="AvailPowerP" value=""></td>
+	    </tr>
+	    <tr>
+	      <td>Static Temperature ( &deg;F )</td>
+	      <td><input id="AvailPowerT" name="AvailPowerT" value=""></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Outputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Pressure Power (ft-lb/s)</td>
+	      <td><input readonly id="AvailPowerPr" name="AvailPowerPr"></td>
+	    </tr>
+	    <tr>
+	      <td>Kinetic Power (ft-lb/s)</td>
+	      <td><input readonly id="AvailPowerVV" name="AvailPowerVV"></td>
+	    </tr>
+	    <tr>
+	      <td>Heat Power (ft-lb/s)</td>
+	      <td><input readonly id="AvailPowerH" name="AvailPowerH"></td>
+	    </tr>
+	    <tr>
+	      <td>Total Available Power (ft-lb/s)</td>
+	      <td><input readonly id="AvailPowerTotal" name="AvailPowerTotal"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcAvailPower()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+</td></tr></table>
+	<script language="JavaScript">
+		CalcAmbient();
+	</script>
+</body>
+</html>

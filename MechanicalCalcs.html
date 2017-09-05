@@ -1,0 +1,486 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en-us">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>Mechanics Calculator</title>
+  <meta content="Frank Mecklenburg" name="author">
+  <meta content="Performs mechanical calculations" name="description">
+	<style type="text/css">
+		.Calculator {
+			float: left;
+			margin: .5em;
+			border: solid #003E99 2px;
+			padding-top: 5px;
+			padding-bottom: 5px;
+			padding-left: 5px;
+			padding-right: 5px;
+		}
+		.Heading {
+			text-align: center;
+			font-size: 14pt;
+			background-color: #ddf;
+			font-weight: bold;
+		}
+		.SubHeading {
+			background-color: #ddd;
+			font-weight: bold;
+			font-style: italic;
+		}
+		.Footer {
+		}
+		button
+		{
+			background-color: #003E99;
+			color: white;
+			float: right;
+		}
+
+	</style>
+	<script language="JavaScript">
+		// Global variables
+		var YoungsModulus;
+		var SigmaMax;
+		var Density;
+		
+		// Global functions
+		function $( id ) {
+			return document.getElementById( id );
+		}
+		
+		function GetNumericValue( id ) {
+			var tmp = $( id ).value;
+			if ( tmp.length <= 0 )
+				return null;
+			tmp = eval( tmp );
+			if ( tmp == NaN ) {
+				alert( id + ' is not a mumber' );
+				return null;
+			}
+			return tmp;// + 0.0;				
+		}
+		
+		function SelectMaterial(ele) {
+			var props = ele.value.split( '|' );
+			$('YoungsModulus').value = props[0];
+			$('SigmaMax').value = props[1];
+			$('TauMax').value = (eval(props[1]) * eval(props[2])).toFixed(1);
+			$('Density').value = props[3];
+		}
+		
+		// Round Tube Strength Calculator
+		function CalcTubeYield() {
+			SigmaMax = GetNumericValue('SigmaMax') * 1000.0;
+			TauMax = GetNumericValue('TauMax') * 1000.0;
+			var od = GetNumericValue('od1');
+			var id = GetNumericValue('id1');
+			var area = Math.PI * (od*od-id*id) / 4.0;
+            var second_moment = Math.PI / 64.0 * (od*od*od*od-id*id*id*id);
+            var polar_moment = Math.PI / 32.0 * (od*od*od*od-id*id*id*id);
+			var max_tensile = SigmaMax * area;
+            var max_bending = SigmaMax * second_moment * 2.0 / od;  // sigma = M * y / I
+            var shear_strength = TauMax;
+            var max_shear = shear_strength * area;
+            var max_torque = shear_strength * polar_moment * 2.0 / od;
+			$('max_tensile').value = max_tensile.toFixed(1);
+			$('max_shear').value = max_shear.toFixed(1);
+			$('max_bending').value = max_bending.toFixed(1);
+			$('max_torque').value = max_torque.toFixed(1);
+		}
+		
+		// Rectangular Bar Strength Calculator
+		function CalcRectBarYield() {
+			SigmaMax = GetNumericValue('SigmaMax') * 1000.0;
+			TauMax = GetNumericValue('TauMax') * 1000.0;
+			var width = GetNumericValue('bar_width');
+			var height = GetNumericValue('bar_height');
+			var area = width * height;
+            var second_moment = width * height * height * height / 12;
+ //            var polar_moment = ;
+			var max_tensile = SigmaMax * area;
+            var max_bending = SigmaMax * second_moment * 2.0 / height;  // sigma = M * y / I
+            var shear_strength = TauMax;
+            var max_shear = shear_strength * area;
+     //       var max_torque = shear_strength * polar_moment * 2.0 / od;
+			$('bar_max_tensile').value = max_tensile.toFixed(1);
+			$('bar_max_shear').value = max_shear.toFixed(1);
+			$('bar_max_bending').value = max_bending.toFixed(1);
+//			$('rect_max_torque').value = max_torque.toFixed(1);
+		}
+		
+		// Rectangular Tube Strength Calculator
+		function CalcRectTubeYield() {
+			SigmaMax = GetNumericValue('SigmaMax') * 1000.0;
+			TauMax = GetNumericValue('TauMax') * 1000.0;
+			var width = GetNumericValue('rect_width');
+			var height = GetNumericValue('rect_height');
+			var wall = GetNumericValue('rect_wall');  // Corner radius inside
+			var area = Math.PI*3*wall*wall+2*wall*(width-4*wall)+2*wall*(height-4*wall);
+            var iside = (wall*Math.pow(height-4*wall,3))/12;
+            var itop = ((width-4*wall)*wall*wall*wall)+(width-4*wall)*wall*Math.pow(((height-wall)/2),2);
+            var icorner = Math.PI/16*15*wall*wall*wall*wall+Math.PI/4*3*wall*wall*Math.pow(((height-4*wall)/2),2);
+            var second_moment = 2*iside+2*itop+4*icorner;
+//            var polar_moment = ;
+			var max_tensile = SigmaMax * area;
+            var max_bending = SigmaMax * second_moment * 2.0 / height;  // sigma = M * y / I
+            var shear_strength = TauMax;
+            var max_shear = shear_strength * area;
+     //       var max_torque = shear_strength * polar_moment * 2.0 / od;
+			$('rect_max_tensile').value = max_tensile.toFixed(1);
+			$('rect_max_shear').value = max_shear.toFixed(1);
+			$('rect_max_bending').value = max_bending.toFixed(1);
+//			$('rect_max_torque').value = max_torque.toFixed(1);
+		}
+		
+		// Round Tube Column Buckling Calculator
+		function CalcTubeBuckling() {
+			YoungsModulus = GetNumericValue('YoungsModulus') * 1000000.0;
+			SigmaMax = GetNumericValue('SigmaMax') * 1000.0;
+			var compression_load = GetNumericValue('compression_load');
+			var od = GetNumericValue('od');
+			var id = GetNumericValue('id');
+			var area = Math.PI * (od*od-id*id) / 4.0;
+			var radius_gyration = Math.sqrt(od*od+id*id)/4.0;
+			var n = GetNumericValue('n');
+			var max_length = radius_gyration * Math.PI * Math.sqrt(n * YoungsModulus * area / compression_load);
+			var critical_length = radius_gyration * Math.PI * Math.sqrt(n * YoungsModulus / SigmaMax);
+			var max_load = SigmaMax * area;
+			$('max_length').value = max_length.toFixed(3);
+			$('critical_length').value = critical_length.toFixed(3);
+			$('max_load').value = max_load.toFixed(3);
+		}
+		
+		// Sheet Buckling Calculator
+		function CalcSheetBuckling() {
+			YoungsModulus = GetNumericValue('YoungsModulus') * 1000000.0;
+			SigmaMax = GetNumericValue('SigmaMax') * 1000.0;
+			var compression_load = GetNumericValue('sheet_compression_load');
+			var thickness = GetNumericValue('thickness');
+			var area = thickness;
+			var radius_gyration = thickness * .2887;
+			var n = GetNumericValue('sheet_n');
+			var max_length = radius_gyration * Math.PI * Math.sqrt(n * YoungsModulus * area / compression_load);
+			var critical_length = radius_gyration * Math.PI * Math.sqrt(n * YoungsModulus / SigmaMax);
+			var max_load = SigmaMax * area;
+			$('sheet_max_length').value = max_length.toFixed(3);
+			$('sheet_critical_length').value = critical_length.toFixed(3);
+			$('sheet_max_load').value = max_load.toFixed(3);
+		}
+		
+	</script>
+</head>
+<body onload="SelectMaterial($('MaterialSelector'))">
+<table><tr><td align="center">
+<h2>Mechanics Calculator</h2>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Properties of Material (Set these first.)
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Material</td>
+	      <td><select id="MaterialSelector" onchange="SelectMaterial(this)">
+			<option value="10|39|.55|.1|0" selected>Alclad - 2024-T3</option>
+			<option value="10|57|.55|.1|0" >Alum - 2024-T36</option>
+			<option value="10|46|.55|.1|0" >Alum - 2024-T4</option>
+			<option value="10|35|.55|.1|0" >Alum - 6061-T6</option>
+			<option value="30|70|.58|.28|0" >Steel - 4130</option>
+			<option value="30|53.7|.58|.28|0" >Steel - 1018</option>
+            <option value="5.5|115|.5|0|0"> Unidirectional E Glass Epoxy</option>
+            <option value="14|130|.5|0|0"> Unidirectional Carbon Epoxy</option>
+		  </select></td>
+	    </tr>
+	    <tr>
+	      <td>Young's Modulus ( mpsi )</td>
+	      <td><input type="text" id="YoungsModulus"></td>
+	    </tr>
+	    <tr>
+	      <td>Tensile Yield ( kpsi ) </td>
+	      <td><input type="text" id="SigmaMax"></td>
+	    </tr>
+	    <tr>
+	      <td>Shear Yield ( kpsi ) </td>
+	      <td><input type="text" id="TauMax"></td>
+	    </tr>
+	    <tr>
+	      <td>Density ( lb/in<sup>3</sup> )</td>
+	      <td> <input type="text" id="Density"></td>
+	    </tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Round Tube Strength
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>O.D. ( in )</td>
+	      <td><input type="text" id="od1" value=""></td>
+	    </tr>
+	    <tr>
+	      <td>I.D. ( in )</td>
+	      <td><input type="text" id="id1" value="0"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Outputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Maximum tensile load (lb)</td>
+	      <td><input type="text" readonly id="max_tensile"></td>
+	    </tr>
+	    <tr>
+	      <td>Maximum shear load (lb)</td>
+	      <td><input type="text" readonly id="max_shear"></td>
+	    </tr>
+	    <tr>
+	      <td>Maximum bending moment (in-lb)</td>
+	      <td><input type="text" readonly id="max_bending"></td>
+	    </tr>
+	    <tr>
+	      <td>Maximum torque (in-lb)</td>
+	      <td><input type="text" readonly id="max_torque"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcTubeYield()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Rectangular Bar Strength
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Width ( in )</td>
+	      <td><input type="text" id="bar_width"></td>
+	    </tr>
+	    <tr>
+	      <td>Height ( in )</td>
+	      <td><input type="text" id="bar_height"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Outputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Maximum tensile load (lb)</td>
+	      <td><input type="text" readonly id="bar_max_tensile"></td>
+	    </tr>
+	    <tr>
+	      <td>Maximum shear load (lb)</td>
+	      <td><input type="text" readonly id="bar_max_shear"></td>
+	    </tr>
+	    <tr>
+	      <td>Maximum bending moment (in-lb)</td>
+	      <td><input type="text" readonly id="bar_max_bending"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcRectBarYield()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Rectangular Tube Strength
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Outside Width ( in )</td>
+	      <td><input type="text" id="rect_width"></td>
+	    </tr>
+	    <tr>
+	      <td>Outside Height ( in )</td>
+	      <td><input type="text" id="rect_height"></td>
+	    </tr>
+	    <tr>
+	      <td>Wall thickness ( in )</td>
+	      <td><input type="text" id="rect_wall" value=".12"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Outputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Maximum tensile load (lb)</td>
+	      <td><input type="text" readonly id="rect_max_tensile"></td>
+	    </tr>
+	    <tr>
+	      <td>Maximum shear load (lb)</td>
+	      <td><input type="text" readonly id="rect_max_shear"></td>
+	    </tr>
+	    <tr>
+	      <td>Maximum bending moment (in-lb)</td>
+	      <td><input type="text" readonly id="rect_max_bending"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcRectTubeYield()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Round Tube Column Buckling
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Compression load ( lb )</td>
+	      <td><input type="text" id="compression_load" value=""></td>
+	    </tr>
+	    <tr>
+	      <td>O.D. ( in )</td>
+	      <td><input type="text" id="od" value=""></td>
+	    </tr>
+	    <tr>
+	      <td>I.D. ( in )</td>
+	      <td><input type="text" id="id" value="0"></td>
+	    </tr>
+		<tr>
+	      <td>Ends</td>
+	      <td><select id="n">
+			<option value="1" >Both free</option>
+			<option value="2" >One free, one fixed</option>
+			<option value="4" >Both fixed</option>
+		  </select></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Outputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Maximum unsupported length</td>
+	      <td><input type="text" readonly id="max_length"></td>
+	    </tr>
+	    <tr>
+	      <td>Critical length</td>
+	      <td><input type="text" readonly id="critical_length"></td>
+	    </tr>
+	    <tr>
+	      <td>Maximum load at critical length</td>
+	      <td><input type="text" readonly id="max_load"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcTubeBuckling()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="2" class="Heading">
+				Thin Plate Buckling
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Inputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Compression load ( lb/in )</td>
+	      <td><input type="text" id="sheet_compression_load" value=""></td>
+	    </tr>
+	    <tr>
+	      <td>Thickness ( in )</td>
+	      <td><input type="text" id="thickness" value=""></td>
+	    </tr>
+		<tr>
+	      <td>Ends</td>
+	      <td><select id="sheet_n">
+			<option value="1" >Both free</option>
+			<option value="2" >One free, one fixed</option>
+			<option value="4" selected>Both fixed</option>
+		  </select></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="SubHeading">
+				Outputs:
+			</td>
+		</tr>
+	    <tr>
+	      <td>Maximum unsupported length</td>
+	      <td><input type="text" readonly id="sheet_max_length"></td>
+	    </tr>
+	    <tr>
+	      <td>Critical length</td>
+	      <td><input type="text" readonly id="sheet_critical_length"></td>
+	    </tr>
+	    <tr>
+	      <td>Maximum load at critical length</td>
+	      <td><input type="text" readonly id="sheet_max_load"></td>
+	    </tr>
+		<tr>
+			<td colspan="2" class="Footer">
+				<button name="Calculate" type="button" onclick="CalcSheetBuckling()">Calculate</button><br>
+			</td>
+		</tr>
+	  </tbody>
+	</table>
+</div>
+
+</td></tr></table>
+</body>
+</html>
