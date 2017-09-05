@@ -1,0 +1,260 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en-us">
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>N106AR Ogar Weight and Balance</title>
+  <meta content="Frank Mecklenburg" name="author">
+  <meta content="Performs calculations related to aviation" name="description">
+	<style type="text/css">
+		.Calculator {
+			float: left;
+			margin: .5em;
+			border: solid #003E99 2px;
+			padding-top: 5px;
+			padding-bottom: 5px;
+			padding-left: 5px;
+			padding-right: 5px;
+		}
+		.Heading {
+			text-align: center;
+			font-size: 14pt;
+			color: #fff;
+			background-color: #f84;
+			font-weight: bold;
+		}
+		.SubHeading {
+			background-color: #ddd;
+			font-weight: bold;
+			font-style: italic;
+		}
+		.Footer {
+		}
+		button
+		{
+			background-color: #003E99;
+			color: white;
+			float: right;
+		}
+		input[type="text"] 
+		{
+			text-align: center;
+			width: 100px;
+		}
+		td
+		{
+			text-align: center;
+		}
+		.BadNews
+		{
+			color:#800;
+			background-color:#ffc;
+			text-align:center;
+			font-weight:bold;
+			font-size:large;
+			text-decoration:blink;
+		}
+		.GoodNews
+		{
+			color:#080;
+			background-color:#fff;
+			text-align:center;
+			font-weight:bold;
+			font-size:large;
+		}
+
+	</style>
+	<script language="JavaScript">
+	
+		// N106AR SZD-45A Ogar
+		var EmptyWeight = 1.0;
+		var EmptyMoment = 1.0;
+		var EmptyCGLocation = 1.0;
+		var MainWheelArm = 12.125;
+		var TailWheelArm = 209.75;
+		var LeftPilotArm = -20.0;
+		var RightPilotArm = -14.0;
+		var BaggageArm = 0.0;
+		var FuelArm = 17.5;
+		var MaxWeight = 1607.0;
+		var MinCGLocation = 19.40;
+		var MaxCGLocation = 28.31;
+		
+		function $( id ) {
+			return document.getElementById( id );
+		}
+		
+		function GetNumericValue( id ) {
+			var tmp = $( id ).value;
+			if ( tmp.length <= 0 )
+				return null;
+			tmp = parseInt( tmp, 10 );
+			if ( tmp == NaN ) {
+				Alert( id + ' is not a mumber' );
+				return null;
+			}
+			return tmp;// + 0.0;				
+		}
+		
+		function CalculateEmptyCGLocation() {
+			var MainWheelEmptyWeight = GetNumericValue( 'MainWheelEmptyWeight' );
+			var TailWheelEmptyWeight = GetNumericValue( 'TailWheelEmptyWeight' );
+			var MainWheelMoment = MainWheelEmptyWeight * MainWheelArm;
+			var TailWheelMoment = TailWheelEmptyWeight * TailWheelArm;
+			EmptyMoment = MainWheelMoment + TailWheelMoment;
+			EmptyWeight = MainWheelEmptyWeight + TailWheelEmptyWeight;
+			EmptyCGLocation = EmptyMoment / EmptyWeight;
+			$('MainWheelMoment').innerHTML = MainWheelMoment.toFixed(0);
+			$('TailWheelMoment').innerHTML = TailWheelMoment.toFixed(0);
+			$('EmptyWeight').innerHTML = EmptyWeight.toFixed(1);
+			$('EmptyCGLocation').innerHTML = EmptyCGLocation.toFixed(1);
+			$('EmptyMoment').innerHTML = EmptyMoment.toFixed(0);
+		}
+		
+		function Recalculate() {
+			CalculateEmptyCGLocation();
+			var LeftPilotWeight = GetNumericValue( 'LeftPilotWeight' );
+			var LeftPilotMoment = LeftPilotWeight * LeftPilotArm;
+			$('LeftPilotMoment').innerHTML = LeftPilotMoment.toFixed(0);
+			var RightPilotWeight = GetNumericValue( 'RightPilotWeight' );
+			var RightPilotMoment = RightPilotWeight * RightPilotArm;
+			$('RightPilotMoment').innerHTML = RightPilotMoment.toFixed(0);
+			var BaggageWeight = GetNumericValue( 'BaggageWeight' );
+			var BaggageMoment = BaggageWeight * BaggageArm;
+			$('BaggageMoment').innerHTML = BaggageMoment.toFixed(0);
+			var FuelWeight = GetNumericValue( 'FuelWeight' );
+			var FuelMoment = FuelWeight * FuelArm;
+			$('FuelMoment').innerHTML = FuelMoment.toFixed(0);
+			var TotalWeight = EmptyWeight + LeftPilotWeight + RightPilotWeight + BaggageWeight + FuelWeight;
+			$('TotalWeight').innerHTML = TotalWeight.toFixed(1);
+			var TotalMoment = EmptyMoment + LeftPilotMoment + RightPilotMoment + BaggageMoment + FuelMoment;
+			var WeightOK = (TotalWeight <= MaxWeight);
+			$('WeightRow').setAttribute('style', WeightOK ? '' : 'background-color: #fcc' );
+			var CGLocation = TotalMoment / TotalWeight;
+			$('CGLocation').innerHTML = CGLocation.toFixed(1);
+			var CGOK = (CGLocation >= MinCGLocation) && (CGLocation <= MaxCGLocation);
+			$('CGRow').setAttribute('style', CGOK ? '' : 'background-color: #fcc' );
+			if ( TotalWeight > MaxWeight ) {
+				$('conclusion').className = 'BadNews';
+				$('conclusion').innerHTML = '&gt;&gt; OVERWEIGHT, DO NOT FLY. &lt;&lt;';
+			} else if ( CGLocation < MinCGLocation ) {
+				$('conclusion').className = 'BadNews';
+				$('conclusion').innerHTML = '&gt;&gt; NOSE-HEAVY, DO NOT FLY. &lt;&lt;';
+			} else if ( CGLocation > MaxCGLocation ) {
+				$('conclusion').className = 'BadNews';
+				$('conclusion').innerHTML = '&gt;&gt; TAIL-HEAVY, DO NOT FLY. &lt;&lt;';
+			} else {
+				$('conclusion').className = 'GoodNews';
+				$('conclusion').innerHTML = 'OK to fly!';
+			}
+		}
+	</script>
+</head>
+<body>
+<table><tr><td align="center">
+<div class="Calculator">
+	<table>
+	  <tbody>
+		<tr>
+			<td colspan="4" class="Heading">
+				N106AR Ogar Weight and Balance
+			</td>
+		</tr>
+		<tr>
+			<td class="SubHeading">Item</td>
+			<td class="SubHeading">Weight (lb)</td>
+			<td class="SubHeading">Arm (in)</td>
+			<td class="SubHeading">Moment (lb-in)</td>
+		</tr>
+	    <tr>
+	      <td style="text-align:left">Main Wheel:</td>
+	      <td><input type="text" id="MainWheelEmptyWeight" value="987"/></td>
+	      <td id="MainWheelArm"></td>
+	      <td><span id="MainWheelMoment">0.0</span></td>
+	    </tr>
+	    <tr>
+	      <td style="text-align:left">Tail Wheel:</td>
+	      <td><input type="text" id="TailWheelEmptyWeight" value="130"/></td>
+	      <td id="TailWheelArm"></td>
+	      <td><span id="TailWheelMoment">0.0</span></td>
+	    </tr>
+	    <tr>
+	      <td style="text-align:left">Empty Glider:</td>
+	      <td><span id="EmptyWeight"></span></td>
+	      <td id="EmptyCGLocation"></td>
+	      <td><span id="EmptyMoment">0.0</span></td>
+	    </tr>
+	    <tr>
+	      <td style="text-align:left">Left Pilot:</td>
+	      <td><input type="text" id="LeftPilotWeight" value="175"/></td>
+	      <td id="LeftPilotArm"></td>
+	      <td><span id="LeftPilotMoment">0.0</span></td>
+	    </tr>
+	    <tr>
+	      <td style="text-align:left">Right Pilot:</td>
+	      <td><input type="text" id="RightPilotWeight" value="0"/></td>
+	      <td id="RightPilotArm"></td>
+	      <td><span id="RightPilotMoment">0.0</span></td>
+	    </tr>
+	    <tr>
+	      <td style="text-align:left">Baggage:</td>
+	      <td><input type="text" id="BaggageWeight" value="0"/></td>
+	      <td id="BaggageArm"></td>
+	      <td><span id="BaggageMoment">0.0</span></td>
+	    </tr>
+	    <tr>
+	      <td style="text-align:left">Fuel:</td>
+	      <td><input type="text" id="FuelWeight" value="42"/></td>
+	      <td id="FuelArm"></td>
+	      <td><span id="FuelMoment">0.0</span></td>
+	    </tr>
+		<tr>
+			<td colspan="4" class="Footer">
+				<button type="button" onclick="Recalculate()">Recalculate</button><br>
+			</td>
+		</tr>
+		<tr>
+			<td class="SubHeading">Parameter</td>
+			<td class="SubHeading">Value</td>
+			<td class="SubHeading">Minimum</td>
+			<td class="SubHeading">Maximum</td>
+		</tr>
+	    <tr id="WeightRow">
+	      <td style="text-align:left">Total Weight:</td>
+	      <td><span id="TotalWeight"></span></td>
+	      <td>&nbsp;</td>
+	      <td id="MaxWeight"></td>
+	    </tr>
+	    <tr id="CGRow">
+	      <td style="text-align:left">Center of Gravity:</td>
+	      <td><span id="CGLocation"></span></td>
+	      <td id="MinCGLocation"></td>
+	      <td id="MaxCGLocation"></td>
+	    </tr>
+	    <tr>
+	      <td colspan="4" id="conclusion">Enter weights and press 'Recalculate'</td>
+	    </tr>
+	    <tr>
+	      <td colspan="4">Revised June 5, 2017</td>
+	    </tr>
+	  </tbody>
+	</table>
+</div>
+
+</td></tr></table>
+<script>
+	//CalculateEmptyCGLocation();
+	$('MainWheelArm').innerHTML = MainWheelArm.toFixed(2);
+	$('TailWheelArm').innerHTML = TailWheelArm.toFixed(2);
+	$('EmptyWeight').innerHTML = EmptyWeight.toFixed(1);
+	$('EmptyCGLocation').innerHTML = EmptyCGLocation.toFixed(1);
+	$('EmptyMoment').innerHTML = EmptyMoment.toFixed(0);
+	$('LeftPilotArm').innerHTML = LeftPilotArm.toFixed(1);
+	$('FuelArm').innerHTML = FuelArm.toFixed(1);
+	$('RightPilotArm').innerHTML = RightPilotArm.toFixed(1);
+	$('BaggageArm').innerHTML = BaggageArm.toFixed(1);
+	$('MaxWeight').innerHTML = MaxWeight.toFixed(1) + ' lb';
+	$('MinCGLocation').innerHTML = MinCGLocation.toFixed(1) + ' in';
+	$('MaxCGLocation').innerHTML = MaxCGLocation.toFixed(1) + ' in';
+</script>
+</body>
+</html>
